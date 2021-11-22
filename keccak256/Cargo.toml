@@ -9,3 +9,6 @@ itertools = "0.10.1"
 num-bigint = "0.4.2"
 num-traits = "0.2.14"
 pasta_curves =  "0.1"
+
+[dev-dependencies]
+pretty_assertions = "1.0"
