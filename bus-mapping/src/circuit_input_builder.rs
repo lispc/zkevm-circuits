@@ -724,6 +724,17 @@ impl<'a> CircuitInputStateRef<'a> {
     }
 }
 
+/// TODO
+pub fn gen_access_list<TX>(
+    block: &eth_types::Block<TX>,
+    tx: &eth_types::Transaction,
+    geth_trace: &GethExecTrace,
+) {
+    for step in &geth_trace.struct_logs {
+        println!("{:?}", step);
+    }
+}
+
 #[cfg(test)]
 mod tracer_tests {
     use super::*;
@@ -1959,5 +1970,33 @@ mod tracer_tests {
         let addr = builder.state_ref().create_address().unwrap();
 
         assert_eq!(addr.to_word(), addr_expect);
+    }
+
+    #[test]
+    fn test_gen_access_list() {
+        // code_a calls code_b via static call, which tries to SSTORE and fails.
+        let code_a = bytecode! {
+            PUSH1(0x0) // retLength
+            PUSH1(0x0) // retOffset
+            PUSH1(0x0) // argsLength
+            PUSH1(0x0) // argsOffset
+            PUSH1(0x0) // value
+            PUSH32(*WORD_ADDR_B) // addr
+            PUSH32(0x1_0000) // gas
+            CALL
+
+            PUSH2(0xaa)
+        };
+        let code_b = bytecode! {
+            PUSH1(0x01) // value
+            PUSH1(0x02) // key
+            SSTORE
+
+            PUSH3(0xbb)
+        };
+        let block =
+            mock::BlockData::new_single_tx_trace_code_2(&code_a, &code_b)
+                .unwrap();
+        gen_access_list(&block.eth_block, &block.eth_tx, &block.geth_trace);
     }
 }

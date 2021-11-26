@@ -10,6 +10,7 @@ pub use ethers_core::types::{
 use pasta_curves::arithmetic::FieldExt;
 use serde::{de, Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fmt;
 use std::str::FromStr;
 
 /// Trait used to define types that can be converted to a 256 bit scalar value.
@@ -156,7 +157,7 @@ struct GethExecStepInternal {
 
 /// The execution step type returned by geth RPC debug_trace* methods.
 /// Corresponds to `StructLogRes` in `go-ethereum/internal/ethapi/api.go`.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 #[doc(hidden)]
 pub struct GethExecStep {
     pub pc: ProgramCounter,
@@ -171,6 +172,32 @@ pub struct GethExecStep {
     pub memory: Memory,
     // storage is hex -> hex
     pub storage: Storage,
+}
+
+impl fmt::Debug for GethExecStep {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let stack = &self.stack.0;
+        let memory = &self.memory.0;
+        let storage = &self.storage.0;
+        let pretty = f.alternate();
+        let mut d = f.debug_struct("Step");
+        d.field("pc", &format_args!("0x{:04x}", self.pc.0))
+            .field("op", &self.op)
+            .field("gas", &format_args!("{}", self.gas.0))
+            .field("gas_cost", &format_args!("{}", self.gas_cost.0))
+            .field("depth", &self.depth)
+            .field("error", &self.error);
+        if pretty {
+            d.field("stack", &format_args!("{:#?}", stack))
+                .field("memory", &format_args!("{:#?}", memory))
+                .field("storage", &format_args!("{:#?}", storage));
+        } else {
+            d.field("stack", &format_args!("{:?}", stack))
+                .field("memory", &format_args!("{:?}", memory))
+                .field("storage", &format_args!("{:?}", storage));
+        }
+        d.finish()
+    }
 }
 
 impl From<GethExecStep> for GethExecStepInternal {
