@@ -25,6 +25,12 @@ pub trait ToWord {
     fn to_word(&self) -> Word;
 }
 
+/// Trait used to convert a type to a [`Address`].
+pub trait ToAddress {
+    /// Convert the type to a [`Address`].
+    fn to_address(&self) -> Address;
+}
+
 /// Trait uset do convert a scalar value to a 32 byte array in big endian.
 pub trait ToBigEndian {
     /// Convert the value to a 32 byte array in big endian.
@@ -116,6 +122,12 @@ impl<F: FieldExt> ToScalar<F> for U256 {
     }
 }
 
+impl ToAddress for U256 {
+    fn to_address(&self) -> Address {
+        Address::from_slice(&self.to_be_bytes()[12..])
+    }
+}
+
 /// Ethereum Hash (160 bits).
 pub type Hash = types::H256;
 
@@ -174,29 +186,38 @@ pub struct GethExecStep {
     pub storage: Storage,
 }
 
+// Wrapper over u8 that provides formats the byte in hex for [`fmt::Debug`].
+pub(crate) struct DebugByte(pub(crate) u8);
+
+impl fmt::Debug for DebugByte {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_fmt(format_args!("{:02x}", self.0))
+    }
+}
+
+// Wrapper over Word reference that provides formats the word in hex for
+// [`fmt::Debug`].
+pub(crate) struct DebugWord<'a>(pub(crate) &'a Word);
+
+impl<'a> fmt::Debug for DebugWord<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_fmt(format_args!("0x{:x}", self.0))
+    }
+}
+
 impl fmt::Debug for GethExecStep {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let stack = &self.stack.0;
-        let memory = &self.memory.0;
-        let storage = &self.storage.0;
-        let pretty = f.alternate();
-        let mut d = f.debug_struct("Step");
-        d.field("pc", &format_args!("0x{:04x}", self.pc.0))
+        f.debug_struct("Step")
+            .field("pc", &format_args!("0x{:04x}", self.pc.0))
             .field("op", &self.op)
             .field("gas", &format_args!("{}", self.gas.0))
             .field("gas_cost", &format_args!("{}", self.gas_cost.0))
             .field("depth", &self.depth)
-            .field("error", &self.error);
-        if pretty {
-            d.field("stack", &format_args!("{:#?}", stack))
-                .field("memory", &format_args!("{:#?}", memory))
-                .field("storage", &format_args!("{:#?}", storage));
-        } else {
-            d.field("stack", &format_args!("{:?}", stack))
-                .field("memory", &format_args!("{:?}", memory))
-                .field("storage", &format_args!("{:?}", storage));
-        }
-        d.finish()
+            .field("error", &self.error)
+            .field("stack", &self.stack)
+            .field("memory", &self.memory)
+            .field("storage", &self.storage)
+            .finish()
     }
 }
 
